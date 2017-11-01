@@ -6,7 +6,6 @@ import static com.esotericsoftware.usbuirt.Win.Kernel32.*;
 import java.util.Arrays;
 import java.util.List;
 
-import com.esotericsoftware.usbuirt.SharedLibraryLoader;
 import com.sun.jna.Memory;
 import com.sun.jna.Native;
 import com.sun.jna.NativeLibrary;

@@ -20,18 +20,10 @@
 
 package com.esotericsoftware.usbuirt;
 
-import java.util.Arrays;
-import java.util.List;
-
-import com.sun.jna.Callback;
-import com.sun.jna.IntegerType;
 import com.sun.jna.Native;
 import com.sun.jna.NativeLibrary;
-import com.sun.jna.Platform;
 import com.sun.jna.Pointer;
-import com.sun.jna.Structure;
 import com.sun.jna.WString;
-import com.sun.jna.ptr.IntByReference;
 import com.sun.jna.win32.W32APIOptions;
 
 /** @author Nathan Sweet */
