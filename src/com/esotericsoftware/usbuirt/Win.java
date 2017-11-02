@@ -28,9 +28,6 @@ import com.sun.jna.win32.W32APIOptions;
 
 /** @author Nathan Sweet */
 public class Win {
-	static public boolean is64Bit = System.getProperty("os.arch").equals("amd64")
-		|| System.getProperty("os.arch").equals("x86_64");
-
 	static public class Kernel32 {
 		static {
 			Native.register(NativeLibrary.getInstance("kernel32", W32APIOptions.DEFAULT_OPTIONS));

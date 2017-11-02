@@ -19,13 +19,6 @@ import com.sun.jna.win32.W32APIOptions;
 
 /** @author Nathan Sweet */
 public class UsbUirt {
-	static public final int FORMAT_UUIRT = 0x0000;
-	static public final int FORMAT_PRONTO = 0x0010;
-	static public final int FORMAT_LEARN_FORCERAW = 0x0100;
-	static public final int FORMAT_LEARN_FORCESTRUC = 0x0200;
-	static public final int FORMAT_LEARN_FORCEFREQ = 0x0400;
-	static public final int FORMAT_LEARN_FREQDETECT = 0x0800;
-
 	static private final int ERROR_CONNECTION = 0x20000001;
 	static private final int ERROR_COMMUNICATION = 0x20000002;
 	static private final int ERROR_DRIVER_NOT_FOUND = 0x20000003;
@@ -103,7 +96,7 @@ public class UsbUirt {
 	public Info getInfo () {
 		if (handle == null) return null;
 		PUUINFO puuinfo = new PUUINFO();
-		UUIRTGetUUIRTInfo(handle, puuinfo);
+		if (!UUIRTGetUUIRTInfo(handle, puuinfo)) return null;
 		Info info = new Info();
 		info.firmwareVersion = (puuinfo.fwVersion >> 8) + "." + (puuinfo.fwVersion & 0xFF);
 		info.protocolVersion = (puuinfo.protVersion >> 8) + "." + (puuinfo.protVersion & 0xFF);
@@ -115,63 +108,68 @@ public class UsbUirt {
 	public Config getConfig () {
 		if (handle == null) return null;
 		int[] flags = new int[1];
-		UUIRTGetUUIRTConfig(handle, flags);
+		if (!UUIRTGetUUIRTConfig(handle, flags)) return null;
 		return new Config(flags[0]);
 	}
 
-	public void setConfig (Config config) {
-		if (handle == null) return;
-		UUIRTSetUUIRTConfig(handle, config.flags);
+	public boolean setConfig (Config config) {
+		if (handle == null) return false;
+		return UUIRTSetUUIRTConfig(handle, config.flags);
+	}
+
+	/** Transmits the specified IR code with the format=Format.pronto, repeat=1, inactivityWaitTime=0. */
+	public boolean transmit (String code, boolean blockExecution) {
+		return transmit(code, Format.pronto, 1, 0, blockExecution);
 	}
 
 	/** Transmits the specified IR code.
-	 * @param format See FORMAT_* constants.
 	 * @param repeat Number of times to repeat the code. For a two-piece code the first piece is sent once followed by the second
 	 *           piece repeat times.
 	 * @param inactivityWaitTime Milliseconds since the last received IR activity to wait before sending the IR code. Normally pass
 	 *           0.
 	 * @param blockExecution If true, execution will be blocked until the IR code is sent. */
-	public boolean transmit (String code, int format, int repeat, int inactivityWaitTime, boolean blockExecution) {
+	public boolean transmit (String code, Format format, int repeat, int inactivityWaitTime, boolean blockExecution) {
 		if (handle == null) return false;
 		Pointer doneEvent = null;
 		if (blockExecution) doneEvent = CreateEvent(null, false, false, new WString("hUSBUIRTXAckEvent"));
-		if (!UUIRTTransmitIR(handle, new WString(code), format, repeat, inactivityWaitTime, doneEvent, null, null)) return false;
-		if (!blockExecution) return true;
-		boolean success = WaitForSingleObject(doneEvent, 10 * 1000) == 0; // WAIT_OBJECT_0
-		CloseHandle(doneEvent);
-		return success;
+		try {
+			if (!UUIRTTransmitIR(handle, new WString(code), format.value, repeat, inactivityWaitTime, doneEvent, null, null))
+				return false;
+			if (!blockExecution) return true;
+			return WaitForSingleObject(doneEvent, 10 * 1000) == 0; // WAIT_OBJECT_0
+		} finally {
+			if (doneEvent != null) CloseHandle(doneEvent);
+		}
 	}
 
-	/** Transmits the specified IR code with the format=FORMAT_PRONTO, repeat=1, inactivityWaitTime=0. */
-	public boolean transmit (String code, boolean blockExecution) {
-		return transmit(code, FORMAT_PRONTO, 1, 0, blockExecution);
+	/** Learns and returns a code in the Pront format or null if learning was aborted or failed. The Pronto format is the most
+	 * reliable, though it generates the longest codes. Blocks execution.
+	 * @return May be null. Empty string is returned if learning was cancelled. */
+	public synchronized String learn () {
+		return learn(Format.pronto, 0);
+	}
+
+	/** Learns and returns a code in the specified format or null if learning was aborted or failed. Blocks execution.
+	 * @return May be null. */
+	public synchronized String learn (Format format) {
+		return learn(format, 0);
 	}
 
 	/** Learns and returns a code in the specified format but only for the specified frequency or null if learning was aborted or
-	 * failed. Blocks execution. */
-	public String learn (int format, int forcedFrequency) {
+	 * failed. Blocks execution.
+	 * @return May be null. */
+	public String learn (Format format, int forcedFrequency) {
 		if (handle == null) return null;
 		if (isLearning) return null;
 		isLearning = true;
 		try {
 			abortLearning.setValue(0);
-			if (!UUIRTLearnIR(handle, format, learnedCode, learn, null, abortLearning, forcedFrequency, null, null)) return null;
+			if (!UUIRTLearnIR(handle, format.value, learnedCode, learn, null, abortLearning, forcedFrequency, null, null))
+				return null;
 			return learnedCode.getString(0);
 		} finally {
 			isLearning = false;
 		}
-	}
-
-	/** Learns and returns a code in the specified format or null if learning was aborted or failed. Blocks execution. */
-	public synchronized String learn (int format) {
-		return learn(format, 0);
-	}
-
-	/** Learns and returns a code in the Pront format or null if learning was aborted or failed. The Pronto format is the most
-	 * reliable, though it generates the longest codes. Blocks execution.
-	 * @return Empty string if learning was cancelled. */
-	public synchronized String learn () {
-		return learn(FORMAT_PRONTO, 0);
 	}
 
 	public void abortLearn () {
@@ -266,6 +264,17 @@ public class UsbUirt {
 				flags |= CONFIG_LEGACYRX;
 			else
 				flags &= ~CONFIG_LEGACYRX;
+		}
+	}
+
+	static public enum Format {
+		uuirt(0x0000), pronto(0x0010), learnForceRaw(0x0100), learnForceStruc(0x0200), learnForceFreq(0x0400), learnForceDetect(
+			0x0800);
+
+		int value;
+
+		Format (int value) {
+			this.value = value;
 		}
 	}
 
