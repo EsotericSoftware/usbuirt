@@ -2,8 +2,8 @@
 <classpath>
 	<classpathentry kind="src" path="src"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
-	<classpathentry kind="lib" path="libs/jna-4.1.0-min.jar"/>
-	<classpathentry kind="lib" path="libs/jna-4.1.0-natives.jar"/>
-	<classpathentry kind="lib" path="libs/usbuirt-natives.jar"/>
+	<classpathentry exported="true" kind="lib" path="libs/jna-4.1.0-min.jar"/>
+	<classpathentry exported="true" kind="lib" path="libs/jna-4.1.0-natives.jar"/>
+	<classpathentry exported="true" kind="lib" path="libs/usbuirt-natives.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

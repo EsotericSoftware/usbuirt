@@ -29,6 +29,8 @@ public class UsbUirt {
 	static private final int CONFIG_LEDTX = 0x0002;
 	static private final int CONFIG_LEGACYRX = 0x0004;
 
+	static private int[] flags = new int[1];
+
 	static {
 		new SharedLibraryLoader().load("uuirtdrv");
 		Native.register(NativeLibrary.getInstance("uuirtdrv", W32APIOptions.DEFAULT_OPTIONS));
@@ -89,7 +91,7 @@ public class UsbUirt {
 	}
 
 	public boolean isConnected () {
-		return handle != null;
+		return handle != null && UUIRTGetUUIRTConfig(handle, flags);
 	}
 
 	/** @return May be null. */
