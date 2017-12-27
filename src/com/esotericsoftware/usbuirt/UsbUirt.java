@@ -38,7 +38,7 @@ public class UsbUirt {
 
 	private Pointer handle;
 	private boolean isLearning;
-	private final Memory learnedCode = new Memory(32768);
+	private final Memory memory = new Memory(32768);
 	private final IntByReference abortLearning = new IntByReference();
 
 	private final PUUCALLBACKPROC receive = new PUUCALLBACKPROC() {
@@ -135,8 +135,8 @@ public class UsbUirt {
 		Pointer doneEvent = null;
 		if (blockExecution) doneEvent = CreateEvent(null, false, false, new WString("hUSBUIRTXAckEvent"));
 		try {
-			if (!UUIRTTransmitIR(handle, new WString(code), format.value, repeat, inactivityWaitTime, doneEvent, null, null))
-				return false;
+			memory.setString(0, code);
+			if (!UUIRTTransmitIR(handle, memory, format.value, repeat, inactivityWaitTime, doneEvent, null, null)) return false;
 			if (!blockExecution) return true;
 			return WaitForSingleObject(doneEvent, 10 * 1000) == 0; // WAIT_OBJECT_0
 		} finally {
@@ -166,9 +166,8 @@ public class UsbUirt {
 		isLearning = true;
 		try {
 			abortLearning.setValue(0);
-			if (!UUIRTLearnIR(handle, format.value, learnedCode, learn, null, abortLearning, forcedFrequency, null, null))
-				return null;
-			return learnedCode.getString(0);
+			if (!UUIRTLearnIR(handle, format.value, memory, learn, null, abortLearning, forcedFrequency, null, null)) return null;
+			return memory.getString(0);
 		} finally {
 			isLearning = false;
 		}
@@ -198,7 +197,7 @@ public class UsbUirt {
 
 	static private native boolean UUIRTSetReceiveCallback (Pointer hHandle, PUUCALLBACKPROC receiveProc, Pointer userData);
 
-	static private native boolean UUIRTTransmitIR (Pointer hHandle, WString IRCode, int codeFormat, int repeatCount,
+	static private native boolean UUIRTTransmitIR (Pointer hHandle, Pointer IRCode, int codeFormat, int repeatCount,
 		int inactivityWaitTime, Pointer hEvent, Pointer reserved0, Pointer reserved1);
 
 	static private native boolean UUIRTLearnIR (Pointer hHandle, int codeFormat, Pointer IRCode, PLEARNCALLBACKPROC progressProc,
@@ -309,13 +308,13 @@ public class UsbUirt {
 		uirt.setConfig(config);
 
 		System.out.println("Transmit blocking...");
-		uirt.transmit(
+		if (!uirt.transmit(
 			"0000 006F 0000 0032 0081 0042 0010 0011 0010 0031 0010 0011 0010 0011 0010 0011 0010 0011 0010 0011 0010 0011 0010 "
 				+ "0011 0010 0011 0010 0011 0010 0011 0010 0011 0010 0031 0010 0011 0010 0011 0010 0011 0010 0011 0010 0011 0010 "
 				+ "0011 0010 0011 0010 0011 0010 0011 0010 0031 0010 0011 0010 0011 0010 0011 0010 0011 0010 0011 0010 0011 0010 "
 				+ "0011 0010 0011 0010 0011 0010 0011 0010 0011 0010 0011 0010 0031 0010 0011 0010 0011 0010 0011 0010 0011 0010 "
 				+ "0011 0010 0011 0010 0011 0010 0031 0010 0011 0010 0011 0010 0031 0010 0ADC",
-			true);
+			true)) throw new Exception("Transmit failed!");
 		System.out.println("Done.\n");
 
 		System.out.println("Learning...");
@@ -326,13 +325,13 @@ public class UsbUirt {
 
 		System.out.println("\nTransmit blocking...");
 		long s = System.nanoTime();
-		uirt.transmit(code, true);
+		if (!uirt.transmit(code, true)) throw new Exception("Transmit failed!");
 		long e = System.nanoTime();
 		System.out.println("Done. " + (e - s) / 1e6 + "\n");
 
 		System.out.println("Transmit non-blocking...");
 		s = System.nanoTime();
-		uirt.transmit(code, false);
+		if (!uirt.transmit(code, false)) throw new Exception("Transmit failed!");
 		e = System.nanoTime();
 		System.out.println("Done. " + (e - s) / 1e6 + "ms\n");
 
