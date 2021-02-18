@@ -48,7 +48,7 @@ public class SharedLibraryLoader {
 			}
 		} catch (Exception ex) {
 			try {
-				if (input != null) input.close();
+				input.close();
 			} catch (Exception ignored) {
 			}
 		}
